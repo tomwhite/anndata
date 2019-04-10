@@ -736,6 +736,7 @@ class AnnData(IndexMixin, metaclass=utils.DeprecationMixinMeta):
             self._raw = None
 
     def _init_X_as_view(self):
+        from scanpy.array import SparseArray
         if self._adata_ref.X is None:
             self._X = None
             return
@@ -748,6 +749,8 @@ class AnnData(IndexMixin, metaclass=utils.DeprecationMixinMeta):
             raise ValueError('View on non-csr/csc sparse matrices not implemented.')
         elif isinstance(X, ZappyArray): # ZappyArray acts as a view itself
             self._X = X
+        elif isinstance(X, SparseArray):
+            self._X = SparseCSRView(X, view_args=(self, 'X'))
         else:
             shape = (
                 get_n_items_idx(self._oidx, self._adata_ref.n_obs),
