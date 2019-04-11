@@ -21,6 +21,8 @@ from scipy.sparse import issparse
 from scipy.sparse.sputils import IndexMixin
 from natsort import natsorted
 
+from dask.array.core import Array as DaskArray
+
 # try importing zarr
 try:
     from zarr.core import Array as ZarrArray
@@ -54,6 +56,7 @@ class StorageType(Enum):
     Sparse = sparse.spmatrix
     ZarrArry = ZarrArray
     ZappyArry = ZappyArray
+    DaskArray = DaskArray
 
     @classmethod
     def classes(cls):
@@ -737,10 +740,12 @@ class AnnData(IndexMixin, metaclass=utils.DeprecationMixinMeta):
 
     def _init_X_as_view(self):
         from scanpy.array import SparseArray
+        from dask.array.core import Array
         if self._adata_ref.X is None:
             self._X = None
             return
         X = self._adata_ref._X[self._oidx, self._vidx]
+        print("_init_X_as_view", type(X))
         if isinstance(X, sparse.csr_matrix):
             self._X = SparseCSRView(X, view_args=(self, 'X'))
         elif isinstance(X, sparse.csc_matrix):
@@ -748,6 +753,8 @@ class AnnData(IndexMixin, metaclass=utils.DeprecationMixinMeta):
         elif issparse(X):
             raise ValueError('View on non-csr/csc sparse matrices not implemented.')
         elif isinstance(X, ZappyArray): # ZappyArray acts as a view itself
+            self._X = X
+        elif isinstance(X, Array): # Dask Array acts as a view itself
             self._X = X
         elif isinstance(X, SparseArray):
             self._X = SparseCSRView(X, view_args=(self, 'X'))
@@ -759,6 +766,7 @@ class AnnData(IndexMixin, metaclass=utils.DeprecationMixinMeta):
             if np.isscalar(X):
                 X = X.view()
             self._X = ArrayView(X.reshape(shape), view_args=(self, 'X'))
+        print("_init_X_as_view", type(self._X))
 
     def _init_as_actual(
             self, X=None, obs=None, var=None, uns=None,
